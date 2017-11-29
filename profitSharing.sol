@@ -2,8 +2,12 @@ pragma solidity ^0.4.16;
 
 contract ProfitSharing {
 
-    mapping(address => uint) balanceOf;
-    mapping(uint => address) accounts;
+    struct accountStruct {
+        address accountAddress;
+        uint balance;
+    }
+
+    mapping(uint256 => accountStruct) accounts;
 
     uint public accTopIndex = 0;
     uint public constant originalTotal = 1000000;
@@ -16,16 +20,16 @@ contract ProfitSharing {
      * Constrctor function
      *
      * Initializes contract with initial supply tokens to the creator of the contract
-     * (Struct vs Double Mapping approach to walking the array)
-     * 638070 vs 541572 (1 address arg)
-     * 641148 vs 543630 (2 address arg)
-     * 675233 vs 571090 (3 address arg)
-     * 709938 vs 573148 (4 address arg)
-     * assignPortion 64699  vs 65339 (1 address arg)
-     * assignPortion 116323 vs 76471 (4 address arg)
+     *
+     * (with 1 address as argument)
+     * 638070 1 address (every additional address costs about 32,000 wei)
+     * 641148 2 address
+     * 675233 3 address
+     * 709938 4 address
+     * 64699 assignPortion
      */
     function ProfitSharing(address[] addresses_) public payable {
-        balanceOf[msg.sender] = 50000;
+        accounts[0] = accountStruct({accountAddress:msg.sender, balance:50000});
         addAccounts(addresses_);
         previousPayoutTime = block.timestamp;
     }
@@ -35,12 +39,22 @@ contract ProfitSharing {
         uint x = addresses_.length + accTopIndex;
         for (uint i=accTopIndex;i<x;i++) {
             uint n = (i-accTopIndex);
-            // Verify that this address hasn't already been added
-            if (balanceOf[addresses_[n]] < 1) {
-                balanceOf[addresses_[n]] = 1;
+            uint accountIndex = getAccountIndexByAddress(addresses_[n]);
+            if (accountIndex == uint(-1)) {
+                accounts[i+1] = accountStruct({accountAddress:addresses_[n], balance:0});
                 accTopIndex++;
             }
         }
+    }
+
+
+    function getAccountIndexByAddress(address someAddress) private constant returns(uint) {
+        for (uint i=0;i<accTopIndex+1;i++) {
+            if (accounts[i].accountAddress == someAddress) {
+                return i;
+            }
+        }
+        return uint(-1);
     }
 
 
@@ -55,7 +69,11 @@ contract ProfitSharing {
 
 
     function getBalance() public constant returns(uint) {
-        return balanceOf[msg.sender];
+        uint accountIndex = getAccountIndexByAddress(msg.sender);
+        if (accountIndex != uint(-1)) {
+            return accounts[accountIndex].balance;
+        }
+        return 0;
     }
 
 
@@ -68,7 +86,7 @@ contract ProfitSharing {
         if (isPayDay()) {
             uint portion = getPortionAmount();
             for (uint i=0;i<accTopIndex+1;i++) {
-                balanceOf[accounts[i]] += portion;
+                accounts[i].balance += portion;
                 currentTotal -= portion;
             }
             payPeriodsLeft--;
