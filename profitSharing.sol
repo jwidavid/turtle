@@ -33,13 +33,14 @@ contract ProfitSharing {
 
     function addAccounts(address[] addresses_) public {
         uint x = addresses_.length + accTopIndex;
+        uint n = 0;
         for (uint i=accTopIndex;i<x;i++) {
-            uint n = (i-accTopIndex);
             // Verify that this address hasn't already been added
             if (balanceOf[addresses_[n]] < 1) {
                 balanceOf[addresses_[n]] = 1;
                 accTopIndex++;
             }
+            n++;
         }
     }
 
