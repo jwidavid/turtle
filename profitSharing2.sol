@@ -86,6 +86,61 @@ contract ProfitSharing {
 
         }
     }
+
+
+    /* assignPortionMod():
+     *
+     * Same as assignPortion, but with use of isPayDay as a modifier rather
+     * than a function. Test to see if this lowers gas usage.
+     */
+    function assignPortionMod() isPayDayMod public {
+        uint portion = getPortionAmount();
+        for (uint i = 0; i < accTopIndex + 1; i++) {
+            balanceOf[accounts[i]] += portion;
+            /* (INSERT STATE CHANGE EVENT...) */
+
+            currentTotal -= portion;
+            /* (INSERT STATE CHANGE EVENT...) */
+
+        }
+        payPeriodsLeft--;
+        /* (INSERT STATE CHANGE EVENT...) */
+
+    }
+
+
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+    /* assignPortion-isPayDay vs. assignPortionMod-isPayDayMod gas test (Wei):
+     *      assignPortion-isPayDay:
+     *          constructor (4 arguments): 1080540
+     *          assignPortion: 109971
+     *          NET USAGE: 1190511
+     *
+     *      assignPortionMod-isPayDayMod:
+     *          constructor (4 arguments): 1058091
+     *          assignPortionMod: 109622
+     *          NET USAGE: 1167713
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+
+
+    /* disperseEth():  [TO BE TESTED]
+     *
+     * Disperses all of the Eth that is held in the contract at the end of the
+     * contract's time period to all of the accounts held in the mappings, 
+     * based on the percentage of shares held in the balanceOf mapping by each 
+     * address. 
+     */
+    function disperseEth() public {
+        uint sharePrice = getValue() / originalTotal;
+        for (uint i = 0; i < accTopIndex; i++) {
+            uint employeeBalance = balanceOf[accounts[i]];
+            accounts[i].transfer(sharePrice * employeeBalance);
+            /* (INSERT STATE CHANGE EVENT...) */
+
+        }
+    }
     
     
     /* getBalance():
@@ -116,6 +171,15 @@ contract ProfitSharing {
     }
 
 
+    /* getValue():
+     *
+     * Returns the current value of the contract (in Wei) 
+     */
+    function getValue() public constant returns(uint) {
+        return this.balance;
+    }
+
+
     /* isPayDay():
      *
      * Return true if it's time for another PayDay!
@@ -132,30 +196,11 @@ contract ProfitSharing {
     /*
     modifier isPayDayMod - to be tested against isPayDay for gas costs
     */
-    
-
-///////////////////////////////////////////////////////////////////////////////
-/////////////////////////////Newly added Functions/////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-
-    /* disperseEth():  [TO BE IMPLEMENTED]
-     *
-     * Disperses all of the Eth that is held in the contract at the end of the
-     * contract's time period to all of the accounts held in the mappings, 
-     * based on the percentage of shares held in the balanceOf mapping by each 
-     * address. 
-     */
-    function disperseEth() public {
-
-    }
-
-
-    /* getValue():
-     *
-     * Returns the current value of the contract (in Wei) 
-     */
-    function getValue() public constant returns(uint) {
-        return this.balance;
+    modifier isPayDayMod() {
+        if (!(previousPayoutTime + 20 < block.timestamp)) {
+            revert();
+        }
+        _;
     }
 
 
@@ -199,8 +244,8 @@ contract ProfitSharing {
         }
         
     }
-
     
+
     /* Test address list:
     ["0x14723a09acff6d2a60dcdf7aa4aff308fddc160c",
      "0x4b0897b0513fdc7c541b6d9d7e929c4e5364d2db",
