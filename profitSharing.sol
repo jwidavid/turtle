@@ -10,7 +10,7 @@ contract ProfitSharing {
     uint public currentTotal = 950000;
     uint public payPeriodsLeft = 6;
     uint public previousPayoutTime;
-
+    
 
     /**
      * Constrctor function
@@ -75,4 +75,37 @@ contract ProfitSharing {
             payPeriodsLeft--;
         }
     }
+}
+
+
+contract voting{
+	//Our code goes here
+	
+    mapping(address => uint) voted;
+    address[] addressesForVotingOn;
+    uint votes = 0;
+    uint createdTime = block.timestamp;
+	
+	
+	function Voting(address[] addresses_) internal {
+	    addressesForVotingOn = addresses_;
+	}
+	
+	
+	function vote(bool aVote_) internal {
+	    if (aVote_) {
+	        votes++;
+	    }
+	    else {
+	        votes--;
+	    }
+	}
+	
+	
+	function getResult() internal returns(bool) {
+	    if (votes >= 0) {
+	        return true;
+	    }
+	    return false;
+	}
 }
