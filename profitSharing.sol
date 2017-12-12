@@ -4,12 +4,17 @@ contract ProfitSharing {
 
     mapping(address => uint) balanceOf;
     mapping(uint => address) accounts;
-
+    mapping(uint => Voting) deployedVotes;
+    
+    uint deployedVotesTopIndex = 0;
+    
     uint public accTopIndex = 0;
     uint public constant originalTotal = 1000000;
     uint public currentTotal = 950000;
     uint public payPeriodsLeft = 6;
     uint public previousPayoutTime;
+    uint public createdTimestamp;
+    bool public votePassed = false;
     
 
     /**
@@ -27,20 +32,28 @@ contract ProfitSharing {
     function ProfitSharing(address[] addresses_) public payable {
         balanceOf[msg.sender] = 50000;
         addAccounts(addresses_);
+        createdTimestamp = block.timestamp;
         previousPayoutTime = block.timestamp;
     }
 
 
     function addAccounts(address[] addresses_) public {
-        uint x = addresses_.length + accTopIndex;
-        uint n = 0;
-        for (uint i=accTopIndex;i<x;i++) {
-            // Verify that this address hasn't already been added
-            if (balanceOf[addresses_[n]] < 1) {
-                balanceOf[addresses_[n]] = 1;
-                accTopIndex++;
+        
+        if (block.timestamp > (createdTimestamp + 1209600) || votePassed) {
+            uint x = addresses_.length + accTopIndex;
+            uint n = 0;
+            for (uint i=accTopIndex;i<x;i++) {
+                // Verify that this address hasn't already been added
+                if (balanceOf[addresses_[n]] < 1) {
+                    balanceOf[addresses_[n]] = 1;
+                    accTopIndex++;
+                }
+                n++;
             }
-            n++;
+        }
+        /* Create a new voting contract */
+        else {
+            deployedVotes[deployedVotesTopIndex] = new Voting(addresses_); 
         }
     }
 
@@ -75,29 +88,38 @@ contract ProfitSharing {
             payPeriodsLeft--;
         }
     }
+    
+    
+    function castVote(bool decision_) public {
+        if (deployedVotes[deployedVotesTopIndex].)
+    }
 }
 
 
-contract voting{
+contract Voting {
 	//Our code goes here
 	
     mapping(address => uint) voted;
     address[] addressesForVotingOn;
     uint votes = 0;
     uint createdTime = block.timestamp;
+    
 	
-	
-	function Voting(address[] addresses_) internal {
+	function Voting(address[] addresses_) public {
 	    addressesForVotingOn = addresses_;
+	    vote(true);
 	}
 	
 	
-	function vote(bool aVote_) internal {
-	    if (aVote_) {
-	        votes++;
-	    }
-	    else {
-	        votes--;
+	function vote(bool aVote_) public {
+	    if (voted[msg.sender] < 1) {
+    	    if (aVote_) {
+    	        votes++;
+    	    }
+    	    else {
+    	        votes--;
+    	    }
+    	    voted[msg.sender]++;
 	    }
 	}
 	
