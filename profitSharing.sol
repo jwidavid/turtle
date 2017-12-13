@@ -37,9 +37,6 @@ contract ProfitSharing {
             });
         /* (INSERT STATE CHANGE EVENT...) */
 
-        accTopIndex++;
-        /* (INSERT STATE CHANGE EVENT...) */
-
         addAccounts(addresses_);
         previousPayoutTime = block.timestamp;
         /* (INSERT STATE CHANGE EVENT...) */
@@ -228,31 +225,32 @@ contract ProfitSharing {
      * information from both the accounts & balanceOf mappings
      */
     function removeAccount(address toRemove) public returns(bool) {
-        // checks if acct was removed yet in loop
-        bool acctRemoved = false;
+        bool acctRemoved = false;  // checks if acct was removed yet in loop
         for (uint i = 0; i <= accTopIndex; i++) {
             // check if given address is contained at current index
             if (accounts[i].accountAddress == toRemove) {
                 // leave address in for now & note that it will be overwritten
                 acctRemoved = true;
-            // check if given address has been removed yet
+
+            // check if given address has been chosen for removal yet
             } else if (acctRemoved) {
-                // if so, bump all following indices back one spot
-                accounts[i-1] = accounts[i];
-                /* (INSERT STATE CHANGE EVENT...) */
+                // At last element, delete account from mapping
+                if (i == accTopIndex) {
+                    delete(accounts[i]);
+                    /* (INSERT STATE CHANGE EVENT...) */
 
-            // check if something has been removed & you are at last element
-            } else if (acctRemoved && i == accTopIndex) {
-                // remove the last item in accounts once all are bumped up
-                delete(accounts[i]);
-                /* (INSERT STATE CHANGE EVENT...) */
+                    // decrement accTopIndex to account for change
+                    accTopIndex--;
+                    /* (INSERT STATE CHANGE EVENT...) */
 
+                // Otherwise, bump all following indices back one spot
+                } else {
+                    accounts[i-1] = accounts[i];
+                    /* (INSERT STATE CHANGE EVENT...) */
+
+                }
             }
         }
-        // decrement accTopIndex to account for change
-        accTopIndex--;
-        /* (INSERT STATE CHANGE EVENT...) */
-
     }
 
 

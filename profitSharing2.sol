@@ -33,9 +33,6 @@ contract ProfitSharing {
         accounts[accTopIndex] = msg.sender;
         /* (INSERT STATE CHANGE EVENT...) */
 
-        accTopIndex++;
-        /* (INSERT STATE CHANGE EVENT...) */
-
         addAccounts(addresses_);
         previousPayoutTime = block.timestamp;
         /* (INSERT STATE CHANGE EVENT...) */
@@ -54,7 +51,7 @@ contract ProfitSharing {
                 balanceOf[addresses_[i]] = 1;
                 /* (INSERT STATE CHANGE EVENT...) */
                 
-                accounts[accTopIndex] = addresses_[i];
+                accounts[accTopIndex + 1] = addresses_[i];
                 /* (INSERT STATE CHANGE EVENT...) */
                 
                 accTopIndex++;
@@ -74,13 +71,14 @@ contract ProfitSharing {
     function assignPortion() public {
         if (isPayDay()) {
             uint portion = getPortionAmount();
-            for (uint i = 0; i < accTopIndex + 1; i++) {
+            for (uint i = 0; i <= accTopIndex; i++) {
                 balanceOf[accounts[i]] += portion;
                 /* (INSERT STATE CHANGE EVENT...) */
                 
-                currentTotal -= portion;
-                /* (INSERT STATE CHANGE EVENT...) */
             }
+            currentTotal -= (portion * (accTopIndex + 1) );
+            /* (INSERT STATE CHANGE EVENT...) */
+
             payPeriodsLeft--;
             /* (INSERT STATE CHANGE EVENT...) */
 
@@ -95,14 +93,14 @@ contract ProfitSharing {
      */
     function assignPortionMod() isPayDayMod public {
         uint portion = getPortionAmount();
-        for (uint i = 0; i < accTopIndex + 1; i++) {
+        for (uint i = 0; i <= accTopIndex; i++) {
             balanceOf[accounts[i]] += portion;
             /* (INSERT STATE CHANGE EVENT...) */
 
-            currentTotal -= portion;
-            /* (INSERT STATE CHANGE EVENT...) */
-
         }
+        currentTotal -= (portion * (accTopIndex + 1) );
+        /* (INSERT STATE CHANGE EVENT...) */
+
         payPeriodsLeft--;
         /* (INSERT STATE CHANGE EVENT...) */
 
@@ -134,7 +132,7 @@ contract ProfitSharing {
      */
     function disperseEth() public {
         uint sharePrice = getValue() / originalTotal;
-        for (uint i = 0; i < accTopIndex; i++) {
+        for (uint i = 0; i <= accTopIndex; i++) {
             uint employeeBalance = balanceOf[accounts[i]];
             accounts[i].transfer(sharePrice * employeeBalance);
             /* (INSERT STATE CHANGE EVENT...) */
@@ -167,7 +165,7 @@ contract ProfitSharing {
      * pay period.
      */
     function getPortionAmount() public constant returns(uint) {
-        return (currentTotal / accTopIndex) / payPeriodsLeft;
+        return (currentTotal / (accTopIndex + 1) ) / payPeriodsLeft;
     }
 
 
@@ -204,45 +202,40 @@ contract ProfitSharing {
     }
 
 
-    /* removeAccount():
+    /* removeAccount(address):
      *
      * Completely removes an address from the company by deleting it's 
      * information from both the accounts & balanceOf mappings
      */
     function removeAccount(address toRemove) public returns(bool) {
-        //remove from accounts
         bool acctRemoved = false;  // checks if acct was removed yet in loop
-        for (uint i = 0; i <= accTopIndex; i++) {
+        for (uint i = 0; i <= accTopIndex + 1; i++) {
             // check if given address is contained at current index
             if (accounts[i] == toRemove) {
                 // leave address in for now & note that it will be overwritten
                 acctRemoved = true;
-            // check if given address has been removed yet
+
+            // check if given address has been chosen for removal yet
             } else if (acctRemoved) {
-                // if so, bump all following indices back one spot
-                accounts[i-1] = accounts[i];
-                /* (INSERT STATE CHANGE EVENT...) */
+                // At last element, delete acct & balance, decrement top index
+                if (i == accTopIndex + 1) {
+                    delete(accounts[i-1]);
+                    /* (INSERT STATE CHANGE EVENT...) */
 
-            // check if something has been removed & you are at last element
-            } else if (acctRemoved && i == accTopIndex) {
-                // remove the last item in accounts once all are bumped up
-                delete(accounts[i]);
-                /* (INSERT STATE CHANGE EVENT...) */
+                    delete(balanceOf[toRemove]);
+                    /* (INSERT STATE CHANGE EVENT...) */
 
+                    accTopIndex--;
+                    /* (INSERT STATE CHANGE EVENT...) */
+
+                // Otherwise, bump all following indices back one spot
+                } else {
+                    accounts[i-1] = accounts[i];
+                    /* (INSERT STATE CHANGE EVENT...) */
+
+                }
             }
         }
-
-        // remove from balanceOf, only if the account was found
-        if (acctRemoved) {
-            delete(balanceOf[toRemove]);
-            /* (INSERT STATE CHANGE EVENT...) */
-
-            // decrement accTopIndex to accomodate change
-            accTopIndex--;
-            /* (INSERT STATE CHANGE EVENT...) */
-
-        }
-        
     }
     
 
