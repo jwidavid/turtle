@@ -10,8 +10,11 @@ library calculateGas {
                                         	variable  that provides the gas limit of
                                         	the block that the transaction is
                                         	currently is */
-        continueTransaction = false;
         if (blockLimit > remainingGas) {
+        /* If the block limit that the transaction is occurring in is greater than the
+           gas remaining in the contract. This returns a false to tell the loop that
+           it cannot continue without getting locked up because there is not enough
+           gas to continue. */    
             continueTransaction = false;
         }
         else {
