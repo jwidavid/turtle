@@ -108,9 +108,8 @@ contract ProfitSharing {
         }
         if (deleted) {
             delete(accounts[accTopIndex]);
+            accTopIndex--;
+            /* (INSERT STATE CHANGE EVENT...) */
         }
-        accTopIndex--;
-        /* (INSERT STATE CHANGE EVENT...) */
-
     }
 }
