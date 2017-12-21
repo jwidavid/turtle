@@ -59,8 +59,8 @@ contract ProfitSharing {
         currentTotal -= (portion * (accTopIndex + 1) );
         payPeriodsLeft--;
     }
-
-
+    
+    
     /**
      * Returns the current balance of the address that called the contract.
      */
