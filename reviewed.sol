@@ -106,6 +106,7 @@ contract ProfitSharing {
                 accounts[i-1] = accounts[i];
             }
         }
+        delete(accounts[accTopIndex]);
         accTopIndex--;
     }
 }
