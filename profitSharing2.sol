@@ -14,84 +14,42 @@ contract ProfitSharing {
     uint public previousPayoutTime;
 
 
-    /* Constructor function
+    /**
+     * Constructor function
      *
      * Initializes contract with initial supply tokens to the contract creator
      * (Struct vs Double Mapping approach [Wei usage] to walking the array)
-     *
-     * 638070 vs 541572 (1 address arg)
-     * 641148 vs 543630 (2 address arg)
-     * 675233 vs 571090 (3 address arg)
-     * 709938 vs 573148 (4 address arg)
-     * assignPortion 64699  vs 65339 (1 address arg)
-     * assignPortion 116323 vs 76471 (4 address arg)
      */
     function ProfitSharing(address[] addresses_) public payable {
         balanceOf[msg.sender] = 50000;
-        /* (INSERT STATE CHANGE EVENT...) */
-
-        accounts[accTopIndex] = msg.sender;
-        /* (INSERT STATE CHANGE EVENT...) */
-
+        accounts[0] = msg.sender;
         addAccounts(addresses_);
         previousPayoutTime = block.timestamp;
-        /* (INSERT STATE CHANGE EVENT...) */
-
     }
 
 
-    /* addAccounts(address[]):
-     *
+    /**
      * Adds a list of addresses to the balanceOf & accounts mappings
      */
     function addAccounts(address[] addresses_) public {
         for (uint i = 0; i < addresses_.length; i++) {
             // Verify that this address hasn't already been added
             if (balanceOf[addresses_[i]] < 1) {
-                balanceOf[addresses_[i]] = 1;
-                /* (INSERT STATE CHANGE EVENT...) */
-                
-                accounts[accTopIndex + 1] = addresses_[i];
-                /* (INSERT STATE CHANGE EVENT...) */
-                
                 accTopIndex++;
+                balanceOf[addresses_[i]] = 1;
+                accounts[accTopIndex] = addresses_[i];
                 /* (INSERT STATE CHANGE EVENT...) */
-
             }
         }
     }
 
 
-    /* assignPortion():
-     *
+    /**
      * Uses the getPortionAmount() function to determine the payout for the 
      * current pay period, then properly adds the portion to each account 
      * balance in the balanceOf mapping.
      */
-    function assignPortion() public {
-        if (isPayDay()) {
-            uint portion = getPortionAmount();
-            for (uint i = 0; i <= accTopIndex; i++) {
-                balanceOf[accounts[i]] += portion;
-                /* (INSERT STATE CHANGE EVENT...) */
-                
-            }
-            currentTotal -= (portion * (accTopIndex + 1) );
-            /* (INSERT STATE CHANGE EVENT...) */
-
-            payPeriodsLeft--;
-            /* (INSERT STATE CHANGE EVENT...) */
-
-        }
-    }
-
-
-    /* assignPortionMod():
-     *
-     * Same as assignPortion, but with use of isPayDay as a modifier rather
-     * than a function. Test to see if this lowers gas usage.
-     */
-    function assignPortionMod() isPayDayMod public {
+    function assignPortion() isPayDayMod public {
         uint portion = getPortionAmount();
         for (uint i = 0; i <= accTopIndex; i++) {
             balanceOf[accounts[i]] += portion;
@@ -99,50 +57,11 @@ contract ProfitSharing {
 
         }
         currentTotal -= (portion * (accTopIndex + 1) );
-        /* (INSERT STATE CHANGE EVENT...) */
-
         payPeriodsLeft--;
-        /* (INSERT STATE CHANGE EVENT...) */
-
     }
 
 
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-    /* assignPortion-isPayDay vs. assignPortionMod-isPayDayMod gas test (Wei):
-     *      assignPortion-isPayDay:
-     *          constructor (4 arguments): 1080540
-     *          assignPortion: 109971
-     *          NET USAGE: 1190511
-     *
-     *      assignPortionMod-isPayDayMod:
-     *          constructor (4 arguments): 1058091
-     *          assignPortionMod: 109622
-     *          NET USAGE: 1167713
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-
-
-    /* disperseEth():  [TO BE TESTED]
-     *
-     * Disperses all of the Eth that is held in the contract at the end of the
-     * contract's time period to all of the accounts held in the mappings, 
-     * based on the percentage of shares held in the balanceOf mapping by each 
-     * address. 
-     */
-    function disperseEth() public {
-        uint sharePrice = getValue() / originalTotal;
-        for (uint i = 0; i <= accTopIndex; i++) {
-            uint employeeBalance = balanceOf[accounts[i]];
-            accounts[i].transfer(sharePrice * employeeBalance);
-            /* (INSERT STATE CHANGE EVENT...) */
-
-        }
-    }
-    
-    
-    /* getBalance():
-     *
+    /**
      * Returns the current balance of the address that called the contract.
      */
     function getBalance() public constant returns(uint) {
@@ -150,17 +69,7 @@ contract ProfitSharing {
     }
 
 
-    /* getBalOfAddress(address):
-     *
-     * Returns the balance of shares held by a specified address.
-     */
-    function getBalOfAddress(address _address) public constant returns (uint) {
-        return balanceOf[_address];
-    }
-
-
-    /* getPortionAmount():
-     *
+    /**
      * Obtains the payout amount to be given to each employee for the current
      * pay period.
      */
@@ -169,31 +78,9 @@ contract ProfitSharing {
     }
 
 
-    /* getValue():
-     *
-     * Returns the current value of the contract (in Wei) 
+    /**
+     * Fails if it is not payday
      */
-    function getValue() public constant returns(uint) {
-        return this.balance;
-    }
-
-
-    /* isPayDay():
-     *
-     * Return true if it's time for another PayDay!
-     */
-    function isPayDay() public constant returns(bool) {
-        // Only pays out every two weeks (1209600 seconds)
-        if (previousPayoutTime + 20 < block.timestamp) {
-            return true;
-        }
-        return false;
-    }
-
-
-    /*
-    modifier isPayDayMod - to be tested against isPayDay for gas costs
-    */
     modifier isPayDayMod() {
         if (!(previousPayoutTime + 20 < block.timestamp)) {
             revert();
@@ -202,47 +89,28 @@ contract ProfitSharing {
     }
 
 
-    /* removeAccount(address):
-     *
+    /**
      * Completely removes an address from the company by deleting it's 
      * information from both the accounts & balanceOf mappings
      */
-    function removeAccount(address toRemove) public returns(bool) {
-        bool acctRemoved = false;  // checks if acct was removed yet in loop
-        for (uint i = 0; i <= accTopIndex + 1; i++) {
+    function removeAccount(address toRemove) public {
+        bool deleted = false;
+        for (uint i=0; i<=accTopIndex; i++) {
             // check if given address is contained at current index
             if (accounts[i] == toRemove) {
-                // leave address in for now & note that it will be overwritten
-                acctRemoved = true;
-
-            // check if given address has been chosen for removal yet
-            } else if (acctRemoved) {
-                // At last element, delete acct & balance, decrement top index
-                if (i == accTopIndex + 1) {
-                    delete(accounts[i-1]);
-                    /* (INSERT STATE CHANGE EVENT...) */
-
-                    delete(balanceOf[toRemove]);
-                    /* (INSERT STATE CHANGE EVENT...) */
-
-                    accTopIndex--;
-                    /* (INSERT STATE CHANGE EVENT...) */
-
-                // Otherwise, bump all following indices back one spot
-                } else {
-                    accounts[i-1] = accounts[i];
-                    /* (INSERT STATE CHANGE EVENT...) */
-
-                }
+                delete(accounts[i]);
+                delete(balanceOf[toRemove]);
+                deleted = true;
+            }
+            else if (deleted) {
+                accounts[i-1] = accounts[i];
             }
         }
-    }
-    
+        if (deleted) {
+            delete(accounts[accTopIndex]);
+        }
+        accTopIndex--;
+        /* (INSERT STATE CHANGE EVENT...) */
 
-    /* Test address list:
-    ["0x14723a09acff6d2a60dcdf7aa4aff308fddc160c",
-     "0x4b0897b0513fdc7c541b6d9d7e929c4e5364d2db",
-     "0x583031d1113ad414f02576bd6afabfb302140225",
-     "0xdd870fa1b7c4700f2bd7f44238821c26f7392148"]
-     */
+    }
 }
