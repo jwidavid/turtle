@@ -4,20 +4,19 @@ contract ProfitSharing {
     
     //Poll strut to add or rmv acct
     struct Poll {
-        string acct; // acct of usr to rmv or add
+        address acct; // acct of usr to rmv or add
         string purpose; // Remove or Add
-        string options; // this is going to be yes or no mostly for event
-        uint votelimit; //max number should be total number of members
-        uint deadline; // Vote Deadline (ex. 24hrs)
-        bool status; // If Vote is active or not
-        uint numVotes; // num of votes submited
+        uint startDate; // Must be 10 days (864000) before payout
+        uint endDate; // length (864000) set initial
+        uint yayCount; // keeps track of yay votes
+        uint nayCount; // keeps track of nay votes
+        bool status; // is the pool still active
     }
     
     mapping (address => Poll) polls;  // Mapped New Eth address to Poll conducted
     address[] public createdPolls;  // Stores all new accounts as poll addrs
-   
-    // event tracking of all votes
-    event NewVote(string votechoice);
+    uint public tenDays = 864000; // this is just a global for 10 days
+
     
     mapping(address => uint) balanceOf;
     mapping(uint => address) accounts;
@@ -27,6 +26,7 @@ contract ProfitSharing {
     uint public currentTotal = 950000;
     uint public payPeriodsLeft = 6;
     uint public previousPayoutTime;
+    
 
 
 
@@ -58,14 +58,10 @@ contract ProfitSharing {
         for (uint i=accTopIndex;i<x;i++) {
             // Verify that this address hasn't already been added
             if (balanceOf[addresses_[n]] < 1) {
-                balanceOf[addresses_[n]] = 1;
-                accTopIndex++;
+                setPoll(addresses_[n], "add");
             }
             n++;
         }
-        //Voting
-        //TODO: Add Voting so they are in the queue
-        //Timer to add or remove  +- of days of payout day
         
     }
 
@@ -99,20 +95,26 @@ contract ProfitSharing {
     }
     
     // Create a Poll for a user  
-    function setPoll(address _address, string _purpose, string _acct, uint _votelimit, 
-                     string _options, uint _deadline) public {
-                         
+    function setPoll(address _address, string _purpose) public {
+        
         var poll = polls[_address];
-        
-        // poll details
-        poll.acct = _acct;
+
+        // Idea: DIfference between LastPP and current is greater than ten days 
+        // it will give the start time to now else after the lastPP
+        if ((previousPayoutTime + 20) - block.timestamp >= tenDays){
+            poll.startDate = block.timestamp;
+            poll.endDate = block.timestamp + tenDays;
+        } else{
+            poll.startDate = previousPayoutTime + 20;
+            poll.endDate = (previousPayoutTime + 20) + tenDays;
+        }
+    
+        poll.acct = _address;
         poll.purpose = _purpose;
-        poll.votelimit = _votelimit;
-        poll.options = _options;
-        poll.deadline = _deadline;
+        poll.yayCount = 0;
+        poll.nayCount = 0;
         poll.status = true;
-        poll.numVotes = 0;
-        
+    
         // Adding Poll Addrs to newAcctPolls array
         createdPolls.push(_address) - 1;
         
@@ -126,26 +128,49 @@ contract ProfitSharing {
     }
     
     // get address of poll and then set vote option
-    function vote(string choice, address _acct) public returns (bool) {
+    //TODO: Audit of who voted?
+    function vote(bool choice, address _acct) public returns (bool) {
         var selectPoll = polls[_acct];
-        if (selectPoll.status != true) {
+
+        // Is for Active?
+        if(!selectPoll.status){
             return false;
         }
         
-        selectPoll.numVotes += 1;
-        NewVote(choice);
-        
-        //if limit or date have been reached, end poll
-        //TODO: Not just close but preform action to add or remove depending on majority 51%
-        if(selectPoll.votelimit > 0){
-            if(selectPoll.numVotes >= selectPoll.votelimit){
-                selectPoll.status = false;
-            }
+        // Vote
+        if (choice){
+            selectPoll.yayCount += 1;
+        } else {
+            selectPoll.nayCount += 1;
         }
+        
+        // Check if voting is done now
+        checkPoll(_acct);
+  
     }
     
-    // Need a way to check if vote has based based on # votes or length of vote
-    
+    // check if Poll Is Active 
+    function checkPoll(address _acct) public returns(bool){
+        var selectPoll = polls[_acct];
+        // If poll has all active members proceed
+        if ((selectPoll.nayCount + selectPoll.yayCount) >= accTopIndex){
+            //If All Active members voted yay to preform action >= 50% do it
+          if ((selectPoll.yayCount/accTopIndex) * 100 >= 50){
+              // add usr
+              if (keccak256(selectPoll.purpose) == keccak256("add")){
+                  balanceOf[_acct] = 1;
+                  accTopIndex++;
+                  selectPoll.status = false;
+              } else {
+                  // rmv usr
+                  balanceOf[_acct] = 0;
+                  accTopIndex--;
+                  selectPoll.status = false;
+              }
+            }
+        }
+        return false;
+    }
 
 
 }
