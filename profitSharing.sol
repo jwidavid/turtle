@@ -2,31 +2,32 @@ pragma solidity ^0.4.16;
 
 contract ProfitSharing {
     
-    //Poll strut to add or rmv acct
+    /**
+     * Poll struct creats an class(?) for each member. Which will be stored
+     * in an array for future processing
+     */
     struct Poll {
-        address acct; // acct of usr to rmv or add
-        string purpose; // Remove or Add
-        uint startDate; // Must be 10 days (864000) before payout
-        uint endDate; // length (864000) set initial
-        uint yayCount; // keeps track of yay votes
-        uint nayCount; // keeps track of nay votes
-        bool status; // is the pool still active
+        address acct; // user wallet address
+        string purpose; // Two options Remove or Add (Future Case?)
+        uint startDate; // Must be 10 days (864000) before payout otherwise immediately
+        uint endDate; // Poll will close in 10 days (864000) of startDate
+        uint yayCount; // Counter for approved votes (True)
+        uint nayCount; // Counter for disapproved votes (False)
+        bool status; // Check if the Poll is active or not
     }
     
-    mapping (address => Poll) polls;  // Mapped New Eth address to Poll conducted
-    address[] public createdPolls;  // Stores all new accounts as poll addrs
-    uint public tenDays = 864000; // this is just a global for 10 days
-
-    
+    mapping (address => Poll) polls;  // Maps new Eth address to Poll
     mapping(address => uint) balanceOf;
     mapping(uint => address) accounts;
-
-    uint public accTopIndex = 0; //keeps track of accts added (count)
-    uint public constant originalTotal = 1000000;
-    uint public currentTotal = 950000;
-    uint public payPeriodsLeft = 6;
-    uint public previousPayoutTime;
     
+    address[] public createdPolls;  // Stores Poll Created in Array
+
+    uint public accTopIndex = 0; // Global: Counter of active accounts (ISSUE)
+    uint public constant originalTotal = 1000000; //
+    uint public currentTotal = 950000; //
+    uint public payPeriodsLeft = 6; //
+    uint public previousPayoutTime; // Last Time Active Accounts Got Paid
+    uint public tenDays = 864000; // Ten Days in seconds
 
 
 
@@ -48,23 +49,23 @@ contract ProfitSharing {
         previousPayoutTime = block.timestamp;
     }
 
-    //Question from Eddy: why  x = , n=, and i? lots of memory used cost? why not 
-    // (for (uint i=0; i < (addresses_.length + accTopIndex(or 'x' possible computatial cost doing addtion); i++)
-    // Go Through array of address if address is not found then call for Voting
-    // else break
+    /**
+     * Add New Account to Group. First by Checking if the account already exist. 
+     * If it hasn't then you'll create a poll so that all parties can vote to
+     * either approve or deny new account entry
+     */
     function addAccounts(address[] addresses_) public {
         uint x = addresses_.length + accTopIndex;
         uint n = 0;
         for (uint i=accTopIndex;i<x;i++) {
-            // Verify that this address hasn't already been added
+            // Verifying New Account Hasn't Been Added Already
             if (balanceOf[addresses_[n]] < 1) {
+                // Creating a Poll for new account
                 setPoll(addresses_[n], "add");
             }
             n++;
         }
-        
     }
-
 
     /* Return True if it's time for another PayDay! */
     function isPayDay() public constant returns(bool) {
@@ -94,13 +95,15 @@ contract ProfitSharing {
         }
     }
     
-    // Create a Poll for a user  
+    /**
+     * This creates a Poll for a user new(add) or old(remove). 
+     * Start time is based on the DIfference previousPayoutTime + 20 and the
+     * block timestamp. If the difference is greater activate poll else
+     * activate code on a later date. Once Created it will be in the array.
+     */
     function setPoll(address _address, string _purpose) public {
-        
         var poll = polls[_address];
 
-        // Idea: DIfference between LastPP and current is greater than ten days 
-        // it will give the start time to now else after the lastPP
         if ((previousPayoutTime + 20) - block.timestamp >= tenDays){
             poll.startDate = block.timestamp;
             poll.endDate = block.timestamp + tenDays;
@@ -115,54 +118,63 @@ contract ProfitSharing {
         poll.nayCount = 0;
         poll.status = true;
     
-        // Adding Poll Addrs to newAcctPolls array
         createdPolls.push(_address) - 1;
         
     }
 
-    // Get All Poll 
-    // (TODO: Need to Orginize data maybe seperate between 
-    //   approved, not, ative, inactive, ect.)
+    /**
+     * This is a simple return all address from the array.
+     * TODO: More Detailed Return or More Getters
+     */
     function getPoll() view public returns (address[]){
         return createdPolls;
     }
     
-    // get address of poll and then set vote option
-    //TODO: Audit of who voted?
+    /**
+     * This allows an active member (TODO) to vote in the poll. Based on the 
+     * date and status of the bool. If it is active and the choice (TorF). Which
+     * will incrament the counter. Once that is done it will check if the poll 
+     * will need to still be active or not.
+     * TODO: Audit of Who Voted to prevent revoting and just tracking
+     * TODO: Only Active Members\
+     */
     function vote(bool choice, address _acct) public returns (bool) {
         var selectPoll = polls[_acct];
 
-        // Is for Active?
-        if(!selectPoll.status){
+        if(!selectPoll.status && block.timestamp < selectPoll.startDate){
             return false;
         }
         
-        // Vote
         if (choice){
             selectPoll.yayCount += 1;
         } else {
             selectPoll.nayCount += 1;
         }
         
-        // Check if voting is done now
         checkPoll(_acct);
-  
     }
     
-    // check if Poll Is Active 
+    /**
+     * checkPoll will see if a poll should be active or not. This depends on the 
+     * date and votes. If the votes are greater than 50% the account will be
+     * removed or added depending on the purpose. Then the poll will be closed. 
+     * TODO: remove poll?
+     * TODO: duplicate account what would happen?
+     * TODO: Assume no vote is a no?
+     */
     function checkPoll(address _acct) public returns(bool){
         var selectPoll = polls[_acct];
-        // If poll has all active members proceed
-        if ((selectPoll.nayCount + selectPoll.yayCount) >= accTopIndex){
-            //If All Active members voted yay to preform action >= 50% do it
-          if ((selectPoll.yayCount/accTopIndex) * 100 >= 50){
-              // add usr
+        // If All active members have voted or date is exceeded
+        if ((selectPoll.nayCount + selectPoll.yayCount) >= accTopIndex || 
+                selectPoll.endDate >= block.timestamp){
+            //If Approve Vote is Above 50% it is approved
+          if ((selectPoll.yayCount/accTopIndex) * 100 > 50){
+              // Solidy Way for String Compare (T/F instead?) add/remove acct
               if (keccak256(selectPoll.purpose) == keccak256("add")){
                   balanceOf[_acct] = 1;
                   accTopIndex++;
                   selectPoll.status = false;
               } else {
-                  // rmv usr
                   balanceOf[_acct] = 0;
                   accTopIndex--;
                   selectPoll.status = false;
@@ -171,6 +183,4 @@ contract ProfitSharing {
         }
         return false;
     }
-
-
 }
