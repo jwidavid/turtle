@@ -1,7 +1,7 @@
 pragma solidity ^0.4.16;
 
 contract ProfitSharing {
-    
+
     /**
      * Poll struct creats an class(?) for each member. Which will be stored
      * in an array for future processing
@@ -15,14 +15,14 @@ contract ProfitSharing {
         uint nayCount; // Counter for disapproved votes (False)
         bool status; // Check if the Poll is active or not
     }
-    
+
     mapping (address => Poll) polls;  // Maps new Eth address to Poll
     mapping(address => uint) balanceOf;
     mapping(uint => address) accounts;
-    
+
     address[] public createdPolls;  // Stores Poll Created in Array
 
-    uint public accTopIndex = 0; // Global: Counter of active accounts (ISSUE)
+    uint public accTopIndex = 1; // Global: Counter of active accounts (ISSUE)
     uint public constant originalTotal = 1000000; //
     uint public currentTotal = 950000; //
     uint public payPeriodsLeft = 6; //
@@ -50,7 +50,7 @@ contract ProfitSharing {
     }
 
     /**
-     * Add New Account to Group. First by Checking if the account already exist. 
+     * Add New Account to Group. First by Checking if the account already exist.
      * If it hasn't then you'll create a poll so that all parties can vote to
      * either approve or deny new account entry
      */
@@ -94,9 +94,9 @@ contract ProfitSharing {
             payPeriodsLeft--;
         }
     }
-    
+
     /**
-     * This creates a Poll for a user new(add) or old(remove). 
+     * This creates a Poll for a user new(add) or old(remove).
      * Start time is based on the DIfference previousPayoutTime + 20 and the
      * block timestamp. If the difference is greater activate poll else
      * activate code on a later date. Once Created it will be in the array.
@@ -111,15 +111,15 @@ contract ProfitSharing {
             poll.startDate = previousPayoutTime + 20;
             poll.endDate = (previousPayoutTime + 20) + tenDays;
         }
-    
+
         poll.acct = _address;
         poll.purpose = _purpose;
         poll.yayCount = 0;
         poll.nayCount = 0;
         poll.status = true;
-    
+
         createdPolls.push(_address) - 1;
-        
+
     }
 
     /**
@@ -129,11 +129,11 @@ contract ProfitSharing {
     function getPoll() view public returns (address[]){
         return createdPolls;
     }
-    
+
     /**
-     * This allows an active member (TODO) to vote in the poll. Based on the 
+     * This allows an active member (TODO) to vote in the poll. Based on the
      * date and status of the bool. If it is active and the choice (TorF). Which
-     * will incrament the counter. Once that is done it will check if the poll 
+     * will incrament the counter. Once that is done it will check if the poll
      * will need to still be active or not.
      * TODO: Audit of Who Voted to prevent revoting and just tracking
      * TODO: Only Active Members\
@@ -141,23 +141,23 @@ contract ProfitSharing {
     function vote(bool choice, address _acct) public returns (bool) {
         var selectPoll = polls[_acct];
 
-        if(!selectPoll.status && block.timestamp < selectPoll.startDate){
+        if(selectPoll.status != true && block.timestamp < selectPoll.startDate){
             return false;
         }
-        
+
         if (choice){
             selectPoll.yayCount += 1;
         } else {
             selectPoll.nayCount += 1;
         }
-        
+
         checkPoll(_acct);
     }
-    
+
     /**
-     * checkPoll will see if a poll should be active or not. This depends on the 
+     * checkPoll will see if a poll should be active or not. This depends on the
      * date and votes. If the votes are greater than 50% the account will be
-     * removed or added depending on the purpose. Then the poll will be closed. 
+     * removed or added depending on the purpose. Then the poll will be closed.
      * TODO: remove poll?
      * TODO: duplicate account what would happen?
      * TODO: Assume no vote is a no?
@@ -165,7 +165,7 @@ contract ProfitSharing {
     function checkPoll(address _acct) public returns(bool){
         var selectPoll = polls[_acct];
         // If All active members have voted or date is exceeded
-        if ((selectPoll.nayCount + selectPoll.yayCount) >= accTopIndex || 
+        if ((selectPoll.nayCount + selectPoll.yayCount) >= accTopIndex ||
                 selectPoll.endDate >= block.timestamp){
             //If Approve Vote is Above 50% it is approved
           if ((selectPoll.yayCount/accTopIndex) * 100 > 50){
