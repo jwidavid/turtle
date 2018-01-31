@@ -51,15 +51,13 @@ contract ProfitSharing {
      */
     function assignPortion() isPayDayMod gasCalculation public {
         uint portion = getPortionAmount();
-
-    	for (uint i = 0; i <= accTopIndex; i++) {
+        for (uint i = 0; i <= accTopIndex; i++) {
             balanceOf[accounts[i]] += portion;
             /* (INSERT STATE CHANGE EVENT...) */
 
-    	}
-    	currentTotal -= (portion * (accTopIndex + 1) );
-    	payPeriodsLeft--;
-        
+        }
+        currentTotal -= (portion * (accTopIndex + 1) );
+        payPeriodsLeft--;
     }
     
     
