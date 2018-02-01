@@ -12,13 +12,17 @@ contract ProfitSharing {
     uint public currentTotal = 950000;
     uint public payPeriodsLeft = 6;
     uint public previousPayoutTime;
-
+    
+    struct Poll {
+        address[] newAddresses;
+        address[] votedMembers;
+        uint startDate;
+        uint vote;
+    }
 
     /**
      * Constructor function
-     *
      * Initializes contract with initial supply tokens to the contract creator
-     * (Struct vs Double Mapping approach [Wei usage] to walking the array)
      */
     function ProfitSharing(address[] addresses_) public payable {
         balanceOf[msg.sender] = 50000;
@@ -31,8 +35,9 @@ contract ProfitSharing {
     /**
      * Adds a list of addresses to the balanceOf & accounts mappings
      */
-    function addAccounts(address[] addresses_) public {
-        for (uint i = 0; i < addresses_.length; i++) {
+    function addAccounts(address[] addresses_) canAddMembersMod public {
+        // is this request prior to the first payday?
+        for (uint i=0; i<addresses_.length; i++) {
             // Verify that this address hasn't already been added
             if (balanceOf[addresses_[i]] < 1) {
                 accTopIndex++;
@@ -51,12 +56,11 @@ contract ProfitSharing {
      */
     function assignPortion() isPayDayMod public {
         uint portion = getPortionAmount();
-        for (uint i = 0; i <= accTopIndex; i++) {
+        for (uint i=0; i<=accTopIndex; i++) {
             balanceOf[accounts[i]] += portion;
             /* (INSERT STATE CHANGE EVENT...) */
-
         }
-        currentTotal -= (portion * (accTopIndex + 1) );
+        currentTotal -= (portion * (accTopIndex + 1));
         payPeriodsLeft--;
     }
     
@@ -111,5 +115,17 @@ contract ProfitSharing {
             accTopIndex--;
             /* (INSERT STATE CHANGE EVENT...) */
         }
+    }
+    
+    
+    modifier canAddMembersMod() {
+        require(payPeriodsLeft < 6);
+        _;
+    }
+    
+    
+    modifier gasCalculation() {
+        require(block.gaslimit > msg.gas);
+        _;
     }
 }
