@@ -8,11 +8,10 @@ contract ProfitSharing {
      */
     struct Poll {
         address [] accts; // user wallet address
-        string purpose; // Two options Remove or Add (Future Case?)
-        uint startDate; // Must be 10 days (864000) before payout otherwise immediately
+        uint purpose; // 1 = add 0 = remove
         uint endDate; // Poll will close in 10 days (864000) of startDate
         uint vote;  // Default all are for until vote against
-        bool status; // Check if the Poll is active or not
+        mapping(address =>  uint) voted_accts;
     }
 
     Poll public p;
@@ -30,7 +29,7 @@ contract ProfitSharing {
     uint public payPeriodsLeft = 6; //
     uint public previousPayoutTime; // Last Time Active Accounts Got Paid
 
-    uint public tenDays = 864000; // Ten Days in seconds
+    uint public threeDays = 259200; // Ten Days in seconds
 
 
 
@@ -139,19 +138,16 @@ contract ProfitSharing {
      * block timestamp. If the difference is greater activate poll else
      * activate code on a later date. Once Created it will be in the array.
      */
-    function createPoll(address[] _accts, string _purpose) public returns(uint) {
-        if ((previousPayoutTime + 20) - block.timestamp >= tenDays){
-            p.startDate = block.timestamp;
-            p.endDate = block.timestamp + tenDays;
+    function createPoll(address[] _accts, uint _purpose) public returns(uint) {
+        if ((previousPayoutTime + 20) - block.timestamp >= threeDays){
+            p.endDate = block.timestamp + threeDays;
         } else{
-            p.startDate = previousPayoutTime + 20;
-            p.endDate = (previousPayoutTime + 20) + tenDays;
+            p.endDate = (previousPayoutTime + 20) + threeDays;
         }
-
+        p.voted_accts[msg.sender];
         p.accts = _accts;
         p.purpose = _purpose;
         p.vote = 1;
-        p.status = true;
 
         return p.vote;
     }
@@ -160,8 +156,8 @@ contract ProfitSharing {
      * This is a simple return all address from the array.
      * TODO: More Detailed Return or More Getters
      */
-    function getPoll() view public returns (bool){
-        return p.status;
+    function getPoll() view public returns (uint){
+        return p.vote;
     }
 
     /**
@@ -169,24 +165,26 @@ contract ProfitSharing {
      * date and status of the bool. If it is active and the choice (TorF). Which
      * will incrament the counter. Once that is done it will check if the poll
      * will need to still be active or not.
-     * TODO: Only Active Members?
      */
      // change to bol
     function vote(bool voteType) public returns (bool) {
 
-        if(p.status != true || block.timestamp < p.startDate){
+        if( block.timestamp < p.endDate){
             return false;
         }
 
-        if (voteType){
-            p.vote += 1;
-        } else {
-            p.vote -= 1;
+
+        // Verify that this address hasn't already been added
+        if (p.voted_accts[msg.sender] < 1) {
+            p.voted_accts[msg.sender];
+            if (voteType){
+                p.vote += 1;
+            } else {
+                p.vote -= 1;
+            }
         }
 
-        p.status = checkPoll();
-
-        return true;
+        return checkPoll();
     }
 
     /**
@@ -200,7 +198,7 @@ contract ProfitSharing {
             //If Approve Vote is Above 50% it is approved
           if (p.vote >= 0){
               // Solidy Way for String Compare (T/F instead?) add/remove acct
-              if (keccak256(p.purpose) == keccak256("add")){
+              if (p.purpose == 1){
                   addAccounts(p.accts);
                   PollResults("add");
                   return false;
